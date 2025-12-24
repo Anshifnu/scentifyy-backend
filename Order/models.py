@@ -28,15 +28,22 @@ class PaymentInfo(models.Model):
 class Order(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending"),
-        ("shipping", "Shipping"),
+        ("shipped", "Shipped"),
         ("processing", "Processing"),
         ("delivered", "Delivered"),
         ("cancelled", "Cancelled"),
     ]
 
+    PAYMENT_METHOD_CHOICES = [
+        ("card", "Card"),
+        ("razorpay", "Razorpay"),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders")
     shipping_info = models.OneToOneField(ShippingInfo, on_delete=models.CASCADE)
-    payment_info = models.OneToOneField(PaymentInfo, on_delete=models.CASCADE)
+    payment_info = models.OneToOneField(PaymentInfo, on_delete=models.CASCADE, null=True, blank=True)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, blank=True,null=True)
+    razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
     date = models.DateTimeField(auto_now_add=True)
 

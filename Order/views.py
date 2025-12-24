@@ -20,10 +20,19 @@ class OrderListCreateAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        print("Incoming order data:", request.data)
+        
         serializer = OrderSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             order = serializer.save()
+            razorpay_payment_id = request.data.get("razorpay_payment_id")
+            if razorpay_payment_id:
+                from Payments.models import RazorpayPayment
+                try:
+                    payment = RazorpayPayment.objects.get(payment_id=razorpay_payment_id)
+                    payment.order = order
+                    payment.save()
+                except RazorpayPayment.DoesNotExist:
+                    pass
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

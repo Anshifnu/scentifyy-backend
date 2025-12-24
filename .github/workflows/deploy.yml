@@ -1,0 +1,35 @@
+name: Deploy Backend to Lambda
+
+on:
+  push:
+    branches:
+      - main  # Pipeline triggers on main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.12
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Package and deploy Lambda
+      run: |
+        zip function.zip app/* 
+        aws lambda update-function-code --function-name MyLambdaFunction --zip-file fileb://function.zip

@@ -30,6 +30,8 @@ urlpatterns = [
     path('api/admin/',include('Manage_Users.urls')),
     path('api/admin/',include('Manage_Orders.urls')),
     path('api/admin/',include('Manage_Products.urls')),
+    path("api/", include("Payments.urls")),
+
 
 
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

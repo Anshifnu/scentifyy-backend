@@ -8,6 +8,8 @@ from Order.models import Order
 from .serializers import OrderStatusUpdateSerializer
 from Common.permissions import IsAdmin
 from rest_framework.permissions import IsAdminUser
+from django.db.models import Q
+
 
 
 User = get_user_model()
@@ -16,7 +18,13 @@ class ManageOrdersView(APIView):
 
     permission_classes=[IsAdmin,IsAdminUser]
     def get(self, request):
+        search=request.query_params.get("search")
         users = User.objects.prefetch_related('orders__items__product').all()
+        if search:
+            users = users.filter(
+                Q(username__icontains=search) |
+                Q(orders__items__product__name__icontains=search)
+            ).distinct()
         serializer = UserWithOrdersSerializer(users, many=True)
         return Response(serializer.data)
 

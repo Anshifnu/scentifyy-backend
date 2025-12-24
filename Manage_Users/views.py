@@ -5,12 +5,20 @@ from rest_framework import status
 from User.models import User
 from .serializers import AdminUserSerializer
 from Common.permissions import IsAdmin
+from django.db.models import Q
 
 class ManageUsersView(APIView):
     permission_classes = [IsAdminUser,IsAdmin]   # only admins allowed
 
     def get(self, request):
+        search=request.query_params.get("search")
         users = User.objects.all().order_by("id")
+        if search:
+            users = users.filter(
+                
+                Q(username__icontains=search) |
+                Q(email__icontains=search)
+            )
         serializer = AdminUserSerializer(users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
