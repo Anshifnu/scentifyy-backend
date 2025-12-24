@@ -1,35 +1,69 @@
-name: Deploy Backend to Lambda
+name: Deploy to EC2
 
 on:
   push:
     branches:
-      - main  # Pipeline triggers on main branch
+      - main # Change to your main branch name if different
+  workflow_dispatch: # Allows manual trigger from GitHub UI
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.12
+      - name: Deploy to EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+        run: |
+          # Setup SSH
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
+          # Create .ssh directory if it doesn't exist
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+          # Add EC2 to known hosts
+          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
 
-    - name: Package and deploy Lambda
-      run: |
-        zip function.zip app/* 
-        aws lambda update-function-code --function-name MyLambdaFunction --zip-file fileb://function.zip
+          # Deploy to EC2
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $USER@$HOST << 'ENDSSH'
+            # Navigate to project directory
+            cd /home/ubuntu/backend/souled-backend
+            
+            # Pull latest changes
+            if git pull origin main; then
+              echo "Git pull successful"
+            else
+              echo "Git pull failed - check repository setup"
+              exit 1
+            fi
+            
+            # Activate virtual environment
+            source venv/bin/activate
+            
+            # Install/update dependencies
+            pip install -r requirements.txt
+            
+            # Run migrations
+            python manage.py migrate --noinput
+            
+            # Collect static files
+            python manage.py collectstatic --noinput
+            
+            # Restart Gunicorn
+            sudo systemctl restart gunicorn
+            
+            # Check Gunicorn status
+            sudo systemctl status gunicorn --no-pager
+            
+            echo "Deployment completed successfully!"
+          ENDSSH
+
+          # Cleanup
+          rm -f private_key.pem
