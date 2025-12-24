@@ -1,72 +1,40 @@
-name: Deploy to EC2
+name: Deploy Backend to EC2
 
 on:
   push:
     branches:
-      - main # Change to your main branch name if different
-  workflow_dispatch: # Allows manual trigger from GitHub UI
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Deploy to EC2
-        env:
-          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-          HOST: ${{ secrets.EC2_HOST }}
-          USER: ${{ secrets.EC2_USER }}
-        run: |
-          # Setup SSH
-          echo "$PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
+    - name: Setup SSH & Deploy
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_KEY }}
+        port: 22
+        script: |
+          # Ensure backend folder exists
+          mkdir -p ~/Ecommerce-backend
+          cd ~/Ecommerce-backend
 
-          # Create .ssh directory if it doesn't exist
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+          # Pull latest code using GitHub token
+          git init
+          git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Anshifnu/Ecommerce-backend.git || true
+          git fetch origin main
+          git reset --hard origin/main
 
-          # Add EC2 to known hosts
-          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
+          # Install dependencies
+          pip install -r requirements.txt
 
-          # Deploy to EC2
-          ssh -i private_key.pem -o StrictHostKeyChecking=no $USER@$HOST << 'ENDSSH'
-            # Navigate to project directory
-            cd /home/ubuntu/Ecommerce-backend
-            
-            # Pull latest changes
-            if git pull origin main; then
-              echo "Git pull successful"
-            else
-              echo "Git pull failed - check repository setup"
-              exit 1
-            fi
-            
-            # Activate virtual environment
-            source venv/bin/activate
-            
-            # Install/update dependencies
-            pip install -r requirements.txt
-            
-            # Run migrations
-            python manage.py migrate --noinput
-            
-            # Collect static files
-            python manage.py collectstatic --noinput
-            
-            # Restart Gunicorn
-            sudo systemctl restart gunicorn
-            
-            # Check Gunicorn status
-            sudo systemctl status gunicorn --no-pager
-            
-            echo "Deployment completed successfully!"
-          ENDSSH
-
-          # Cleanup
-          rm -f private_key.pem
-
+          # Restart backend (adjust if using uvicorn/Django)
+          sudo systemctl restart my-backend || echo "Restart service manually"
 
 
