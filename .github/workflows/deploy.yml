@@ -34,7 +34,7 @@ jobs:
           # Deploy to EC2
           ssh -i private_key.pem -o StrictHostKeyChecking=no $USER@$HOST << 'ENDSSH'
             # Navigate to project directory
-            cd /home/ubuntu/backend/souled-backend
+            cd /home/ubuntu/Ecommerce-backend
             
             # Pull latest changes
             if git pull origin main; then
@@ -68,4 +68,3 @@ jobs:
           # Cleanup
           rm -f private_key.pem
 
-          
